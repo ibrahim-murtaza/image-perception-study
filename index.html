@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Perception Study</title>
+    <style>
+        /* --- CSS STYLES --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 700px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        h1, h2, h3 { color: #2c3e50; margin-bottom: 20px; }
+        p { font-size: 1.1em; line-height: 1.6; color: #555; }
+
+        /* Image Styling */
+        .image-container {
+            width: 100%;
+            height: 400px; /* Fixed height to prevent layout jumps */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #eee;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Label Box Styling */
+        .label-box {
+            background-color: #e8f4fd;
+            border: 2px solid #007bff;
+            color: #007bff;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 1.5em;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+
+        /* Input Styling */
+        input[type="text"] {
+            padding: 12px;
+            font-size: 1.1em;
+            width: 80%;
+            max-width: 300px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        input:focus { border-color: #007bff; outline: none; }
+
+        /* Button Styling */
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .btn-primary { background-color: #007bff; }
+        .btn-primary:hover { background-color: #0069d9; }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .loading { color: #888; font-style: italic; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="startScreen" class="container">
+        <h1>Image Perception Study</h1>
+        <p>Welcome. In this experiment, you will view <strong>4 images</strong>.</p>
+        <p>Please observe each image and its label carefully.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        
+        <label for="emailInput"><strong>Enter your Email Address:</strong><br>
+        <span style="font-size: 0.9em; color: #666;">(Please make sure this is the same email you used for the survey)</span></label>
+        <br>
+        <input type="email" id="emailInput" placeholder="name@example.com">
+        <br>
+        <button onclick="startExperiment()" class="btn-primary">Start Experiment</button>
+    </div>
+
+    <div id="trialScreen" class="container hidden">
+        <h3 id="progressText">Image 1 of 4</h3>
+        
+        <div class="image-container">
+            <img id="stimulusImage" src="" alt="Study Image">
+        </div>
+
+        <div class="label-box">
+            Label: <span id="stimulusLabel"></span>
+        </div>
+
+        <p>Please observe the image and the label above.</p>
+        <p>When you are ready, click Next.</p>
+        
+        <button onclick="nextTrial()">Next Image ➔</button>
+    </div>
+
+    <div id="loadingScreen" class="container hidden">
+        <h2>Saving Data...</h2>
+        <p>Please wait while we record your session.</p>
+        <div class="loading">Do not close this tab.</div>
+    </div>
+
+    <div id="finishScreen" class="container hidden">
+        <h2 style="color: #28a745;">Images Complete!</h2>
+        <p>You have finished viewing the images.</p>
+        <p>The image viewing portion is complete.</p>
+        <p><strong>Please alert the researcher to continue to the survey.</strong></p>
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚙️ CONFIGURATION (UPDATE THESE!)
+        // ==========================================
+        
+        // 1. The URL of your Google Apps Script Web App (from "Deploy > Web App")
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWwz16AKbkzVWLWsDNST0GGIYt3R6D6ybwjM5uJ4UNjEqM7zE6dxJKK0bdnVrvulGHLg/exec"; // <-- PASTE YOUR SCRIPT URL HERE
+
+        // ==========================================
+        // 🖼️ IMAGE POOLS
+        // ==========================================
+        // Ensure these filenames match EXACTLY what is in your folders.
+        
+        const realImagesPool = [
+            "images/real/cups.png",
+            "images/real/flood.png",
+            "images/real/football.png",
+            "images/real/galaxy.png",
+            "images/real/ladies_with_bags.png",
+            "images/real/mountain_clouds.png",
+            "images/real/mountains.png",
+            "images/real/refugees.png",
+            "images/real/trekker.png",
+            "images/real/wildfire.png",
+        ];
+
+        const aiImagesPool = [
+            "images/ai/apples.png",
+            "images/ai/earthquake.png",
+            "images/ai/feeding_the_poor.png",
+            "images/ai/football.png",
+            "images/ai/mountains.png",
+            "images/ai/stars.png",
+            "images/ai/trekker.png",
+            "images/ai/trump.png",
+            "images/ai/tsunami.png",
+            "images/ai/wildfire.png",
+        ];
+
+        // ==========================================
+        // 🧠 LOGIC (DO NOT TOUCH BELOW)
+        // ==========================================
+
+        let participantID = "";
+        let trials = [];
+        let currentTrialIndex = 0;
+
+        // Helper: Shuffle an array
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 1. Start Button Clicked
+        function startExperiment() {
+            const input = document.getElementById("emailInput");
+            participantID = input.value.trim();
+
+            // Simple validation to ensure they typed something
+            if (!participantID || !participantID.includes("@")) {
+                alert("Please enter a valid email address to continue.");
+                return;
+            }
+
+            // --- RANDOMIZATION ALGORITHM (LATIN SQUARE LOGIC) ---
+            
+            // A. Shuffle pools and pick top 2 from each
+            const shuffledReal = shuffle([...realImagesPool]);
+            const shuffledAI = shuffle([...aiImagesPool]);
+            
+            const selectedReal = shuffledReal.slice(0, 2);
+            const selectedAI = shuffledAI.slice(0, 2);
+
+            // B. Assign Conditions to create balanced set
+            // 1. Real + True Label (TN)
+            trials.push({ 
+                image: selectedReal[0], 
+                label: "Human-Created", 
+                condition: "TN (True Negative)",
+                type: "Real"
+            });
+
+            // 2. Real + False Label (FP)
+            trials.push({ 
+                image: selectedReal[1], 
+                label: "AI-Generated", 
+                condition: "FP (False Positive)",
+                type: "Real"
+            });
+
+            // 3. AI + True Label (TP)
+            trials.push({ 
+                image: selectedAI[0], 
+                label: "AI-Generated", 
+                condition: "TP (True Positive)",
+                type: "AI"
+            });
+
+            // 4. AI + False Label (FN)
+            trials.push({ 
+                image: selectedAI[1], 
+                label: "Human-Created", 
+                condition: "FN (False Negative)",
+                type: "AI"
+            });
+
+            // C. Shuffle the final presentation order
+            trials = shuffle(trials);
+
+            // D. Start the UI
+            document.getElementById("startScreen").classList.add("hidden");
+            document.getElementById("trialScreen").classList.remove("hidden");
+            renderTrial();
+        }
+
+        // 2. Render the current trial
+        function renderTrial() {
+            if (currentTrialIndex >= trials.length) {
+                finishExperiment();
+                return;
+            }
+
+            const t = trials[currentTrialIndex];
+            
+            // Update text and image
+            document.getElementById("progressText").innerText = `Image ${currentTrialIndex + 1} of 4`;
+            document.getElementById("stimulusImage").src = t.image;
+            document.getElementById("stimulusLabel").innerText = t.label;
+            
+            // Reset scroll
+            window.scrollTo(0, 0);
+        }
+
+        // 3. Next Button Clicked
+        function nextTrial() {
+            currentTrialIndex++;
+            renderTrial();
+        }
+
+        // 4. End of images -> Send Data -> Show Link
+        function finishExperiment() {
+            document.getElementById("trialScreen").classList.add("hidden");
+            document.getElementById("loadingScreen").classList.remove("hidden");
+
+            // Prepare payload for Google Sheet
+            const payload = {
+                userEmail: participantID, // We save the email under a clear key
+                timestamp: new Date().toISOString(),
+                trials: trials 
+            };
+
+            // Send to Google Apps Script
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors", // 'no-cors' is required for Google Apps Script webhooks
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                // Data sent! Now show the final screen
+                showFinalScreen();
+            })
+            .catch(err => {
+                console.error("Error sending data", err);
+                alert("There was a connection error. Please verify your internet connection.");
+                // Show screen anyway so they can survey
+                showFinalScreen();
+            });
+        }
+
+        function showFinalScreen() {
+            document.getElementById("loadingScreen").classList.add("hidden");
+            document.getElementById("finishScreen").classList.remove("hidden");
+        }
+
+    </script>
+</body>
+</html>
