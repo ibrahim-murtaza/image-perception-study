@@ -251,7 +251,7 @@ If you use or adapt this interface, please cite:
 
 ## Related Repository
 
-- **Data Analysis Code**: https://github.com/mominasajid2/CS6303-proj
+- **Data Analysis Code**: https://github.com/ibrahim-murtaza/image-perception-study-data-analysis
 
 ## License
 
